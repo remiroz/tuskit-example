@@ -1,0 +1,17 @@
+{
+  "platforms": [
+    "apple",
+    "android",
+    "web"
+  ],
+  "apple": {
+    "modules": [
+      "TuskitUploadModule"
+    ]
+  },
+  "android": {
+    "modules": [
+      "expo.modules.tuskitupload.TuskitUploadModule"
+    ]
+  }
+}
