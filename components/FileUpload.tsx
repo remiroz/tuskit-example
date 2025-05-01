@@ -1,64 +1,39 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import RNFS from "react-native-fs";
 import TusKit from '../modules/tuskit-upload';
+import { addEventLister } from "../modules/tuskit-upload/src/TuskitUploadModule";
+
+addEventLister("onProgressUpdate", (update) => {
+  console.log("onProgressUpdate", update);
+});
 
 export default function FileUpload() {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadId, setUploadId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
 
-  // Initialize TUS client when component mounts
-  useEffect(() => {
-    const initTusClient = async () => {
-      try {
-        await TusKit.initialize(
-          'https://your-tus-server.com/files', // Your TUS server URL
-          'your-app-identifier' // Unique identifier for your app
-        );
-        console.log('TUS client initialized successfully');
-      } catch (error) {
-        console.error('Failed to initialize TUS client:', error);
-      }
-    };
-
-    initTusClient();
-
-    // Set up progress listener
-    const subscription = TusKit.addListener('uploadProgress', (progress) => {
-      const percentage = (progress.bytesUploaded / progress.totalBytes) * 100;
-      setUploadProgress(percentage);
-      console.log(`Upload progress: ${percentage.toFixed(2)}%`);
-    });
-
-    // Clean up listener when component unmounts
-    return () => {
-      TusKit.removeListeners(1);
-    };
-  }, []);
-
   const handleFileUpload = async () => {
     try {
       setIsUploading(true);
-      
-      // Example: Get a file from the device
-    
-      // const fileUri = await FileSystem.getDocumentDirectoryAsync() + 'example.jpg';
-      
+            
+      const path = `${RNFS.DocumentDirectoryPath}/file2.txt`;
       // Upload the file
-      const result = await TusKit.uploadData(
-          '123456789012345678901234567890',
+      const result = await TusKit.upload(
+          path,
+          'f6701f50-4efb-4d10-836e-69374c5b9e90',
+          {
+            filename: '1.txt',
+            type: 'text',
+          },
           {
               uploadURL: 'https://video.bunnycdn.com/tusupload',
               customHeaders: {
-                  "AuthorizationExpire": "1748011529",
-                  "AuthorizationSignature": "7a457f743d7432721dd11b96427cfba7889fccc89fa44f65011743072ae45be7",
+                  "AuthorizationExpire": "1746093337",
+                  "AuthorizationSignature": "2f2dafaf54e82e294b9fe8b54aba930830d7d745ed3f438301c5779e1280dcb3",
                   "LibraryId": "316486",
-                  "VideoId": "8afae5b0-91f7-45b5-8768-ea94bb37b77b"
-              },
-              context: {
-                  'filename': '1',
-                  'type': 'image',
+                  "VideoId": "d3fc45ad-2fde-4540-8870-5cdd3f0a950f"
               }
           }
       );
