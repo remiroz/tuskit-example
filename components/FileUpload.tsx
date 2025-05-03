@@ -14,15 +14,37 @@ export default function FileUpload() {
   const [uploadId, setUploadId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
 
+  const generateTestFile = async () => {
+    // 10gb
+    // const sizeInBytes = 10 * 1024 * 1024 * 1024;
+    // 200mb
+    const sizeInBytes = 300 * 1024 * 1024;
+    // generate a stub file
+    // upload the file
+  
+    const path = `${RNFS.DocumentDirectoryPath}/file1.txt`;
+  
+    const dataChunkSize = 1024;
+    const chunk = "0".repeat(dataChunkSize); // Repeat '0' to make a chunk of 1KB
+    const chunksToWrite = Math.ceil(sizeInBytes / dataChunkSize);
+    for (let i = 0; i < chunksToWrite; i++) {
+      if (i % 1000 === 0) {
+        console.log(`Writing chunk ${i} of ${chunksToWrite}`);
+      }
+      // Here we use appendFile instead of writeFile to prevent overwriting
+      await RNFS.appendFile(path, chunk, "utf8");
+    }
+  }
+
   const handleFileUpload = async () => {
     try {
       setIsUploading(true);
             
-      const path = `${RNFS.DocumentDirectoryPath}/file2.txt`;
+      const path = `${RNFS.DocumentDirectoryPath}/file3.txt`;
       // Upload the file
       const result = await TusKit.upload(
           path,
-          'f6701f50-4efb-4d10-836e-69374c5b9e90',
+          'f6701f50-4efb-4d10-836e-69374c5b9b22',
           {
             filename: '1.txt',
             type: 'text',
@@ -30,10 +52,10 @@ export default function FileUpload() {
           {
               uploadURL: 'https://video.bunnycdn.com/tusupload',
               customHeaders: {
-                  "AuthorizationExpire": "1746093337",
-                  "AuthorizationSignature": "2f2dafaf54e82e294b9fe8b54aba930830d7d745ed3f438301c5779e1280dcb3",
-                  "LibraryId": "316486",
-                  "VideoId": "d3fc45ad-2fde-4540-8870-5cdd3f0a950f"
+                "AuthorizationExpire": "1746242475",
+                "AuthorizationSignature": "e6543ce193fedde658a1e52f48a9436c2f7e8308bb08c04489fd5fde9da59582",
+                "LibraryId": "316486",
+                "VideoId": "36628553-9f91-4dd6-a4cc-c78258bb0a78"
               }
           }
       );
@@ -48,30 +70,32 @@ export default function FileUpload() {
   };
 
   const handleCancelUpload = async () => {
-    if (uploadId) {
       try {
-        await TusKit.cancelUpload(uploadId);
+        await TusKit.cancelUpload('f6701f50-4efb-4d10-836e-69374c5b9a90');
         console.log('Upload cancelled');
         setUploadId(null);
         setUploadProgress(0);
       } catch (error) {
         console.error('Failed to cancel upload:', error);
       }
-    }
   };
 
-  const handleRetryUpload = async () => {
-    if (uploadId) {
-      try {
-        const success = await TusKit.retryUpload(uploadId);
-        if (success) {
-          console.log('Upload retry started');
-          setIsUploading(true);
-        }
-      } catch (error) {
-        console.error('Failed to retry upload:', error);
-      }
-    }
+  const getUploadDetail = async () => {
+    const detail = await TusKit.getUploadTasks();
+    console.log('Upload detail:', detail);
+  };
+  
+  const getFreeStorageSpace = async () => {
+    const space = await TusKit.getFreeStorageSpace();
+    console.log('Free storage space:', space);
+  };
+
+  const cleanup = async () => {
+    await TusKit.cleanup();
+  };
+
+  const clearAllCache = async () => {
+    await TusKit.clearAllCache();
   };
 
   return (
@@ -84,25 +108,40 @@ export default function FileUpload() {
 
       <View style={styles.buttonContainer}>
         <Button
+          title="generate test file"
+          onPress={generateTestFile}
+        />
+
+        <Button
           title={isUploading ? "Uploading..." : "Upload File"}
           onPress={handleFileUpload}
           disabled={isUploading}
         />
         
-        {uploadId && (
-          <>
-            <Button
-              title="Cancel Upload"
-              onPress={handleCancelUpload}
-              disabled={!isUploading}
-            />
-            <Button
-              title="Retry Upload"
-              onPress={handleRetryUpload}
-              disabled={isUploading}
-            />
-          </>
-        )}
+        <Button
+          title="Cancel Upload"
+          onPress={handleCancelUpload}
+        />
+
+        <Button
+          title="Get Upload Detail"
+          onPress={getUploadDetail}
+        />
+
+        <Button
+          title="getFreeStorageSpace"
+          onPress={getFreeStorageSpace}
+        />
+
+        <Button
+          title="cleanup"
+          onPress={cleanup}
+        />
+
+        <Button
+          title="clearAllCache"
+          onPress={clearAllCache}
+        />
       </View>
     </View>
   );
