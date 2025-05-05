@@ -178,7 +178,7 @@ public class TuskitUploadModule: Module {
         return uploads.map { upload in
             var taskInfo: [String: Any] = [:]
 
-            taskInfo["id"] = upload.id
+            taskInfo["id"] = upload.context?["fileId"] ?? 0
             taskInfo["status"] = "Waiting"
             let upperBound = upload.uploadedRange?.upperBound ?? 0
             let total = upload.size
