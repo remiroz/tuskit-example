@@ -19,7 +19,51 @@ struct InvalidUUIDError: Error {}
 
 public class TuskitUploadModule: Module {
   private var tusClient: TUSClient?
-    
+
+  private func handleStarted(fileId: String) {
+    DispatchQueue.main.async {
+      self.sendEvent(
+        ON_FILE_QUEUEING_COMPLETED,
+        [
+          "fileId": fileId,
+        ])
+    }
+  }
+
+  private func handleProgress(progress: Float, fileId: String) {
+    DispatchQueue.main.async {
+      self.sendEvent(
+        ON_PROGRESS_UPDATE_EVENT_NAME,
+        [
+          "progress": progress,
+          "fileId": fileId,
+        ])
+    }
+  }
+
+  private func handleCompletion(fileId: String) {
+    DispatchQueue.main.async {
+      print("Upload complete for \(fileId)")
+      self.sendEvent(
+        ON_UPLOAD_COMPLETE_EVENT_NAME,
+        [
+        "fileId": fileId
+        ])
+    }
+  }
+
+  private func handleFailed(error: Error?, fileId: String) {
+    DispatchQueue.main.async {
+      print("Upload failed for \(fileId): \(error?.localizedDescription)")
+      self.sendEvent(
+        ON_UPLOAD_FAILED_EVENT_NAME,
+        [
+          "fileId": fileId,
+          "error": error?.localizedDescription,
+        ])
+    }
+  }
+
   public required init(appContext: AppContext) {
       super.init(appContext: appContext)
       if tusClient != nil {
@@ -118,9 +162,6 @@ public class TuskitUploadModule: Module {
         guard let uploadId = try self.getUploadIdByVideoId(fileId) else {
             return
         }
-        self.sendEvent(ON_PROGRESS_UPDATE_EVENT_NAME, [
-          "message": "cancel upload id \(uploadId)"
-        ])
         guard let uuid = UUID(uuidString: uploadId) else {
             throw InvalidUUIDError()
         }
@@ -138,15 +179,17 @@ public class TuskitUploadModule: Module {
             var taskInfo: [String: Any] = [:]
 
             taskInfo["id"] = upload.id
-            taskInfo["uploadURL"] = upload.uploadURL
-            taskInfo["filePath"] = upload.filePath
-            taskInfo["remoteDestination"] = upload.remoteDestination
-            taskInfo["context"] = upload.context
-            taskInfo["uploadedRange"] = String(describing: upload.uploadedRange)
-            taskInfo["uploadedRange1"] = upload.uploadedRange?.upperBound ?? 0
-            taskInfo["mimeType"] = upload.mimeType
-            taskInfo["customHeaders"] = upload.customHeaders
-            taskInfo["size"] = upload.size
+            taskInfo["status"] = "Waiting"
+            let upperBound = upload.uploadedRange?.upperBound ?? 0
+            let total = upload.size
+            taskInfo["progress"] = Float(upperBound) / Float(total)
+            if(taskInfo["progress"] as! Float == 1.0) {
+              taskInfo["status"] = "Completed"
+            } else if(taskInfo["progress"] as! Float > 0) {
+              taskInfo["status"] = "Uploading"
+            } else {
+              taskInfo["status"] = "Waiting"
+            }
 
             return taskInfo
         }
@@ -192,41 +235,33 @@ public class TuskitUploadModule: Module {
 
 extension TuskitUploadModule: TUSClientDelegate {
     public func didStartUpload(id: UUID, context: [String: String]?, client: TUSClient) {
-        self.sendEvent(ON_PROGRESS_UPDATE_EVENT_NAME, [
-          "message": "TUSClient started upload, id is \(id)"
-        ])
-        self.sendEvent(ON_PROGRESS_UPDATE_EVENT_NAME, [
-          "message": "TUSClient remaining is \(client.remainingUploads)"
-        ])
+        if let fileId = context?["fileId"] {
+            self.handleStarted(fileId: fileId)
+        }
     }
     
     public func didFinishUpload(id: UUID, url: URL, context: [String: String]?, client: TUSClient) {
-        self.sendEvent(ON_PROGRESS_UPDATE_EVENT_NAME, [
-          "message": "TUSClient finished upload, id is \(id) url is \(url), context is \(String(describing: context))"
-        ])
+        if let fileId = context?["fileId"] {
+            self.handleCompletion(fileId: fileId)
+        }
     }
     
     public func uploadFailed(id: UUID, error: Error, context: [String: String]?, client: TUSClient) {
-        self.sendEvent(ON_PROGRESS_UPDATE_EVENT_NAME, [
-          "message": "TUSClient upload failed for \(id) error \(error)"
-        ])
+        if let fileId = context?["fileId"] {
+            self.handleFailed(error: error, fileId: fileId)
+        }
     }
     
     public func fileError(error: TUSClientError, client: TUSClient) {
-        self.sendEvent(ON_PROGRESS_UPDATE_EVENT_NAME, [
-          "message": "TUSClient File error \(error)"
-        ])
     }
     
     public func totalProgress(bytesUploaded: Int, totalBytes: Int, client: TUSClient) {
     }
     
     public func progressFor(id: UUID, context: [String: String]?, bytesUploaded: Int, totalBytes: Int, client: TUSClient) {
-        // self.sendEvent(ON_PROGRESS_UPDATE_EVENT_NAME, [
-        //   "message": "TUSClient started upload, id is \(id), context is \(String(describing: context))"
-        // ])
-        self.sendEvent(ON_PROGRESS_UPDATE_EVENT_NAME, [
-          "message": "TUSClient progress for \(id): \(bytesUploaded)/\(totalBytes) bytes uploaded"
-        ])
+        if let fileId = context?["fileId"] {
+            let progress = Float(bytesUploaded) / Float(totalBytes)
+            self.handleProgress(progress: progress, fileId: fileId)
+        }
     }
 }
